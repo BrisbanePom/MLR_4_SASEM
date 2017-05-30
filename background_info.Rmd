@@ -1,0 +1,9 @@
+
+# need to create a remote and upstream repos and clone to own github
+
+https://www.r-bloggers.com/evaluating-logistic-regression-models/
+https://www.r-bloggers.com/logistic-regression-regularized-with-optimization/
+https://www.r-bloggers.com/illustrated-guide-to-roc-and-auc/
+https://www.r-bloggers.com/roc-curves-and-classification/
+https://stackoverflow.com/questions/43877848/lasso-logistic-regression-suitable-for-imbalanced-data
+https://stackoverflow.com/questions/30959484/logistic-regression-with-caret-and-glmnet-in-r
