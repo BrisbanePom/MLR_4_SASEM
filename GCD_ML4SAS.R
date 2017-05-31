@@ -74,8 +74,6 @@ GCD_Predict_LR <- GCD_Validation %>%
 confusionMatrix(data = GCD_Predict_LR$Predicted,
                 reference = GCD_Predict_LR$Observed)
 
-
-
 # #Aply model to validation data set - Decision Tree
 # GCD_Pred_DT.obj <-predict(GCD_Model_DT, GCD_Validation)
 # GCD_Predict_DT <- GCD_Validation %>%
@@ -96,6 +94,10 @@ ROC.Validation_LR <- roc(GCD_Predict_LR$Observed, GCD_Predict_LR$Pred_Prob)
 print("TRAINING"); auc(ROC.Training_LR)
 print("VALIDATION"); auc(ROC.Validation_LR)
 
+### Plotting ROC curves
+
+# a) using base graphics system
+
 #Plot ROC curves
 plot(ROC.Training_LR, col = "blue",
      print.auc = TRUE, print.auc.y = .4)
@@ -103,5 +105,33 @@ plot(ROC.Validation_LR, col = "magenta",
      print.auc = TRUE, print.auc.y = .2,
      add = TRUE)
 
+# b) using ggplot2 graphics system
+
+library(ggplot2)
+
+# can be extended to accommodate comparison of ROC curves, and 
+# certainly could stand some aesthetic tweaks... but a gr8 start!
+ggplotROC = function(roc, colour="black", title = NULL){
+    # for ggplot solution: h/t @ https://stackoverflow.com/questions/37438461/
+    auc_percent = round(roc$auc * 100, 2)
+    df = data.frame(Specificity=roc$specificities, Sensitivity=roc$sensitivities)
+    plot = ggplot(data = df, aes(x = Specificity, y = Sensitivity))+
+        geom_path(colour = colour, size = 1.5)+
+        scale_x_reverse() +
+        geom_abline(intercept = 1, slope = 1, color='grey')+
+        annotate("text", x = .85, y = .95, 
+            label = paste0('AUC: ', auc_percent, '%'), size = 5) +
+        labs(title = title, y = 'Sensitivity (%)', x = 'Specificity (%)')
+    # adding a clean and simple theme
+    plot = plot + theme_minimal()
+    return(plot)
+}
+
+# plots created from 
+trainRocPlot = ggplotROC(ROC.Training_LR, colour = "red",
+    title = "Training Set Performance")
+
+testRocPlot = ggplotROC(ROC.Validation_LR, colour = "blue",
+    "Validation Set Performance")
 
 
