@@ -22,8 +22,8 @@ GCD_Validation <- GCD[-Partition_Index,]
 
 
 #(Check relative proportions of the target variables in the split data)
-prop.table(table(GCD_Training$Class))
-prop.table(table(GCD_Validation$Class))
+#prop.table(table(GCD_Training$Class))
+#prop.table(table(GCD_Validation$Class))
 
 
 #Build a train control object
@@ -37,6 +37,7 @@ GCD_TrCtrl <- trainControl(method="cv",
 GCD_Model_LR <- train(Class ~ . -ID,
                       data=GCD_Training,
                       method="glm",
+                      #method="glmStepAIC", direction = "forward", steps=10,
                       family="binomial",
                       trControl=GCD_TrCtrl)
 warnings(GCD_Model_LR) #Display detailed warnings
@@ -50,19 +51,20 @@ GCD_Pred_LR <-predict(GCD_Model_LR,
 
 #Compile training and validation data into a single data frame for evaluation
 #detach(package:MASS) #(Detach MASS package if called by caret to avoid conflict with dplyr)
-GCD_Evaluate_Tr <- GCD_Model_LR$pred %>%
-    select(ID=rowIndex, Predicted=pred, Observed=obs, Pred_Prob=Bad) %>%
-    mutate(Partition="Training") %>%
-    select(Partition,ID,Pred_Prob,Predicted,Observed) %>%
+GCD_Evaluate_Tr <- GCD_Training %>%
+    mutate(Partition="Training",
+           Pred_Prob = GCD_Model_LR$pred$Bad,
+           Predicted = GCD_Model_LR$pred$pred,
+           Observed  = GCD_Model_LR$pred$obs) %>%
+    select(Partition,ID,Pred_Prob,Predicted,Observed)%>%
     arrange(desc(Pred_Prob))
 
 GCD_Evaluate_Val <- GCD_Validation %>%
-    select(ID, Observed=Class) %>%
     mutate(Partition="Validation",
            Pred_Prob = GCD_Pred_LR$Bad,
            Predicted = factor(as.character(ifelse(GCD_Pred_LR$Bad > 0.5,"Bad","Good")),
                               levels=c("Good", "Bad"), ordered=TRUE)) %>% 
-    select(Partition,ID,Pred_Prob,Predicted,Observed) %>%
+    select(Partition,ID,Pred_Prob,Predicted,Observed=Class) %>%
     arrange(desc(Pred_Prob))
 
 
@@ -80,10 +82,7 @@ rm(GermanCredit,Partition_Index,GCD_Pred_LR, GCD_Evaluate_Tr, GCD_Evaluate_Val)
 #===================================================
 
 
-#Show model variable importance - move into evaluation / plots code
-predictors(GCD_Model_LR)
-VI1 <- varImp(GCD_Model_LR)
-plot(VI1)
+
 
 
 

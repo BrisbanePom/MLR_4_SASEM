@@ -3,6 +3,8 @@ library(ROCR)
 library(ggplot2)
 
 
+# ROC Plots and Lift Charts ===================================================================
+
 #Generate the Plot objects for the training partition
 DF_Plot_Tr <- GCD_Evaluate %>%
     filter(Partition=="Training") %>% 
@@ -72,13 +74,60 @@ Lift_Plot <- ggplot(data=Evaluate_Results_DF,aes(x=Lift_X,y=Lift_Y,col=Partition
     theme_minimal()
 Lift_Plot
 
-#Confusion Matrix on Validation data
+
+
+# Confusion Matrix =========================================================================
 CM <- confusionMatrix(data = DF_Plot_Val$Predicted,
                       reference = DF_Plot_Val$Observed)
 CM
 
 
+
+# Gains tables =============================================================================
+DF_Gains_Val <- GCD_Evaluate %>%
+    filter(Partition=="Validation") %>%
+    mutate(bin = ntile(1-Pred_Prob, 10)) %>% 
+    group_by(bin) %>%
+    summarise(
+        observations=n(),
+        bads = sum(Observed=="Bad")
+    ) %>% 
+    mutate(cum.observations = cumsum(observations),
+           cum.bads = cumsum(bads),
+           gain=cum.bads/sum(bads)*100,
+           cum.lift=gain/(bin*(100/10))) %>%
+    ungroup() %>% 
+    select(decile=bin,observations,cum.observations,bads,cum.bads,gain,cum.lift)
+
+DF_Gains_Tr <- GCD_Evaluate %>%
+    filter(Partition=="Training") %>%
+    mutate(bin = ntile(1-Pred_Prob, 10)) %>% 
+    group_by(bin) %>%
+    summarise(
+        observations=n(),
+        bads = sum(Observed=="Bad")
+    ) %>% 
+    mutate(cum.observations = cumsum(observations),
+           cum.bads = cumsum(bads),
+           gain=cum.bads/sum(bads)*100,
+           cum.lift=gain/(bin*(100/10))) %>%
+    ungroup() %>% 
+    select(decile=bin,observations,cum.observations,bads,cum.bads,gain,cum.lift)
+
+
+# Variable Importance plot =======================================================================
+#Show model variable importance - move into evaluation / plots code
+predictors(GCD_Model_LR)
+VI1 <- varImp(GCD_Model_LR)
+plot(VI1)
+
+
+
+
 #Remove interim objects
 rm(AUC_Train, AUC_Valid, Lift_Train, Lift_Valid, ROC_Train, ROC_Valid, PredObj_Train, PredObj_Valid)
+
+
+
 
 
