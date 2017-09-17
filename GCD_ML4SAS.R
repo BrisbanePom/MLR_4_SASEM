@@ -70,17 +70,15 @@ GCD_Evaluate_Val <- GCD_Validation %>%
 
 GCD_Evaluate <- bind_rows(GCD_Evaluate_Tr,GCD_Evaluate_Val)  
 
-
-
 #Clean up interim objects
 rm(GermanCredit,Partition_Index,GCD_Pred_LR, GCD_Evaluate_Tr, GCD_Evaluate_Val)
 
-
-
-
-#WIP - to develop / migrate into evaluation function
-#===================================================
-
+#Evaluate results with the evaluation function
+Eval_Results <- ModelEvaluate(GCD_Evaluate,GCD_Model_LR)
+Eval_Results$Plots$ROC
+Eval_Results$Plots$Lift
+Eval_Results$Plots$VarImp
+summ
 
 
 
