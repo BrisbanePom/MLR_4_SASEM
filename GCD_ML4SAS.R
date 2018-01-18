@@ -1,6 +1,7 @@
 #Install packages
 library(dplyr)
 library(caret)
+library(pacman)
 
 
 #Utilise German Credit Data file from caret with pre-cleansed data
@@ -21,66 +22,83 @@ GCD_Training <- GCD[Partition_Index,]
 GCD_Validation <- GCD[-Partition_Index,]
 
 
-#(Check relative proportions of the target variables in the split data)
-#prop.table(table(GCD_Training$Class))
-#prop.table(table(GCD_Validation$Class))
-
-
 #Build a train control object
-GCD_TrCtrl <- trainControl(method="cv",
-                           summaryFunction=defaultSummary,
-                           classProbs=T,
-                           savePredictions = T)
-#Add in pre-processing: imputation and normalisation
+tc_GCD <- trainControl (   method="cv", number = 10,
+                           summaryFunction = twoClassSummary,
+                           classProbs = TRUE,
+                           verboseIter = TRUE,
+                           savePredictions = TRUE)
+#Add in pre-processing options: imputation and normalisation
+
+
+
+#=== Basic GLM =================================================================
 
 #Train Logistic regression model (family = Binomial, method=glm) glmStepAIC
-GCD_Model_LR <- train(Class ~ . -ID,
-                      data=GCD_Training,
-                      method="glm",
-                      #method="glmStepAIC", direction = "forward", steps=10,
-                      family="binomial",
-                      trControl=GCD_TrCtrl)
-warnings(GCD_Model_LR) #Display detailed warnings
+model_GLM <- train(Class ~ . -ID,
+                  data=GCD_Training,
+                  method="glm",
+                  #method="glmStepAIC", direction = "forward", steps=10,
+                  family="binomial",
+                  trControl=tc_GCD)
+#warnings(GCD_Model) #Display detailed warnings
 
 
 #Apply model to validation data set - Logistic Regression
-GCD_Pred_LR <-predict(GCD_Model_LR,
-                      GCD_Validation,
-                      type="prob")
+GCD_Predict <-predict(model_GLM, GCD_Validation, type="prob")
 
 
-#Compile training and validation data into a single data frame for evaluation
-#detach(package:MASS) #(Detach MASS package if called by caret to avoid conflict with dplyr)
-GCD_Evaluate_Tr <- GCD_Training %>%
-    mutate(Partition="Training",
-           Pred_Prob = GCD_Model_LR$pred$Bad,
-           Predicted = GCD_Model_LR$pred$pred,
-           Observed  = GCD_Model_LR$pred$obs) %>%
-    select(Partition,ID,Pred_Prob,Predicted,Observed)%>%
-    arrange(desc(Pred_Prob))
+#Create model evaluation data frame
+dfEval_GLM <- ModelGather(model_GLM, GCD_Training,
+                          GCD_Validation, GCD_Predict)
 
-GCD_Evaluate_Val <- GCD_Validation %>%
-    mutate(Partition="Validation",
-           Pred_Prob = GCD_Pred_LR$Bad,
-           Predicted = factor(as.character(ifelse(GCD_Pred_LR$Bad > 0.5,"Bad","Good")),
-                              levels=c("Good", "Bad"), ordered=TRUE)) %>% 
-    select(Partition,ID,Pred_Prob,Predicted,Observed=Class) %>%
-    arrange(desc(Pred_Prob))
-
-
-GCD_Evaluate <- bind_rows(GCD_Evaluate_Tr,GCD_Evaluate_Val)  
 
 #Clean up interim objects
-rm(GermanCredit,Partition_Index,GCD_Pred_LR, GCD_Evaluate_Tr, GCD_Evaluate_Val)
-
-#Evaluate results with the evaluation function
-Eval_Results <- ModelEvaluate(GCD_Evaluate,GCD_Model_LR)
-Eval_Results$Plots$ROC
-Eval_Results$Plots$Lift
-Eval_Results$Plots$VarImp
-summ
+rm(GermanCredit, Partition_Index, GCD_Predict)
 
 
+#Extract the evaluation plots
+plots_GLM <- ModelPlots(dfEval_GLM)
+plots_GLM$ROC
+plots_GLM$Lift
+ModelVarImp(model_GLM)
+summary(model_GLM)
+
+
+#=== GLMNET =================================================================
+#https://amunategui.github.io/binary-outcome-modeling/
+
+#Train Logistic regression model (family = Binomial, method=glm) glmStepAIC
+model_GLMNet <- train(  Class ~ . -ID,
+                        data=GCD_Training,
+                        method="glmnet",
+                        #tuneGrid = expand.grid(alpha = 0:1,
+                        #                       lambda = seq(0.0001, 1, length = 20)),
+                        family="binomial",
+                        trControl=tc_GCD)
+
+
+#Apply model to validation data set - Logistic Regression
+GCD_Predict <-predict(model_GLMNet, GCD_Validation, type="prob")
+
+
+#Create model evaluation data frame
+dfEval_GLMNet <- ModelGather(model_GLMNet, GCD_Training,
+                          GCD_Validation, GCD_Predict)
+
+#Issue of Multiple iterations in data and having to filter by mtry
+
+
+ModelVarImp(model_GLMNet)
+
+results <- resamples(list(GLM=model_GLM, GLMNet=model_GLMNet))
+# summarize the distributions
+summary(results)
+# boxplots of results
+bwplot(results)
+# dot plots of results
+dotplot(results)
+summary(model_GLMNet)
 
 
 
